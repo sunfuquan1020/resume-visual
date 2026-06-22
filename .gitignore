@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.log
+.DS_Store
+
+# verification artifacts
+.playwright-mcp/
+/dashboard-*.png
+/editor-*.png
+
+# TS build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo

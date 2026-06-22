@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind CSS v4 — theme is defined in CSS. The custom `tab-*` colors and the
+ * sans font generate the same utilities used across the app
+ * (bg-tab-blue, text-tab-slate, font-sans, …).
+ */
+@theme {
+  --color-tab-blue: #1f77b4;
+  --color-tab-orange: #ff7f0e;
+  --color-tab-green: #2ca02c;
+  --color-tab-red: #d62728;
+  --color-tab-teal: #17becf;
+  --color-tab-navy: #0b3d61;
+  --color-tab-ink: #1a1a2e;
+  --color-tab-slate: #4a5568;
+  --color-tab-panel: #f4f6fb;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+/*
+ * v3 → v4 compatibility: in v4 a bare `border` / `divide` uses currentColor.
+ * Keep the previous light-gray default so existing borders look unchanged.
+ */
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-gray-200, #e5e7eb);
+  }
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: #eef1f7;
+  color: #1a1a2e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Keep printed/exported resume colors accurate. */
+@media print {
+  body {
+    background: #fff;
+  }
+}
