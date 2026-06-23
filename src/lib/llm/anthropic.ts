@@ -22,7 +22,7 @@ export class AnthropicProvider implements LLMProvider {
 
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
     const data = parseResumeData(
-      await this.chatJSON(buildSystemPrompt(opts.language), buildUserPrompt(text)),
+      await this.complete(buildSystemPrompt(opts.language), buildUserPrompt(text), RESUME_JSON_SCHEMA),
     );
     data.meta.source = "anthropic";
     return data;
@@ -30,9 +30,10 @@ export class AnthropicProvider implements LLMProvider {
 
   async translateResume(input: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
     const data = parseResumeData(
-      await this.chatJSON(
+      await this.complete(
         buildTranslateSystemPrompt(target),
         buildTranslateUserPrompt(JSON.stringify(input)),
+        RESUME_JSON_SCHEMA,
       ),
     );
     data.meta.language = target;
@@ -40,25 +41,25 @@ export class AnthropicProvider implements LLMProvider {
     return data;
   }
 
-  private async chatJSON(system: string, user: string): Promise<unknown> {
+  async complete(system: string, user: string, schema: object): Promise<unknown> {
     const res = await this.client.messages.create({
       model: this.model,
       max_tokens: 4096,
       system,
       tools: [
         {
-          name: "emit_resume",
-          description: "Emit the structured resume data.",
-          input_schema: RESUME_JSON_SCHEMA as unknown as Anthropic.Tool.InputSchema,
+          name: "emit",
+          description: "Emit the structured result.",
+          input_schema: schema as Anthropic.Tool.InputSchema,
         },
       ],
-      tool_choice: { type: "tool", name: "emit_resume" },
+      tool_choice: { type: "tool", name: "emit" },
       messages: [{ role: "user", content: user }],
     });
 
     const toolUse = res.content.find((c) => c.type === "tool_use");
     if (!toolUse || toolUse.type !== "tool_use") {
-      throw new Error("Claude did not return structured resume data.");
+      throw new Error("Claude did not return a structured result.");
     }
     return toolUse.input;
   }

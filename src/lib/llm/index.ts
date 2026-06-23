@@ -41,6 +41,22 @@ export function getProvider(): { provider: LLMProvider; requested: ProviderId } 
       }
       break;
     }
+    case "openrouter": {
+      // OpenRouter is OpenAI-compatible — reuse the same provider with its baseURL.
+      const key = process.env.OPENROUTER_API_KEY;
+      if (key) {
+        return {
+          provider: new OpenAICompatProvider({
+            id: "openrouter",
+            apiKey: key,
+            baseURL: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+            model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini",
+          }),
+          requested,
+        };
+      }
+      break;
+    }
     case "ollama": {
       return {
         provider: new OllamaProvider(

@@ -18,6 +18,13 @@ export class MockProvider implements LLMProvider {
     return { ...data, meta: { ...data.meta, language: target } };
   }
 
+  /** No LLM behind the rule-based extractor — the assistant needs a real model. */
+  async complete(): Promise<unknown> {
+    throw new Error(
+      "AI 助手需要配置大模型（Claude / OpenAI / OpenRouter / Ollama）。请在 .env.local 设置后重试。",
+    );
+  }
+
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
     const lines = text
       .split(/\r?\n/)

@@ -51,7 +51,7 @@ export class OllamaProvider implements LLMProvider {
 
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
     const data = parseResumeData(
-      await this.chatJSON(buildSystemPrompt(opts.language), buildUserPrompt(text)),
+      await this.complete(buildSystemPrompt(opts.language), buildUserPrompt(text), RESUME_JSON_SCHEMA),
     );
     data.meta.source = "ollama";
     return data;
@@ -59,9 +59,10 @@ export class OllamaProvider implements LLMProvider {
 
   async translateResume(input: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
     const data = parseResumeData(
-      await this.chatJSON(
+      await this.complete(
         buildTranslateSystemPrompt(target),
         buildTranslateUserPrompt(JSON.stringify(input)),
+        RESUME_JSON_SCHEMA,
       ),
     );
     data.meta.language = target;
@@ -69,7 +70,7 @@ export class OllamaProvider implements LLMProvider {
     return data;
   }
 
-  private async chatJSON(system: string, user: string): Promise<unknown> {
+  async complete(system: string, user: string, schema: object): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -83,7 +84,7 @@ export class OllamaProvider implements LLMProvider {
           model: this.model,
           stream: false,
           think: false,
-          format: RESUME_JSON_SCHEMA,
+          format: schema,
           options: { temperature: 0.2 },
           messages: [
             { role: "system", content: system },

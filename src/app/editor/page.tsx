@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ResumeForm } from "@/components/editor/ResumeForm";
 import { ExportButtons } from "@/components/editor/ExportButtons";
 import { LanguageToggle } from "@/components/editor/LanguageToggle";
+import { ChatPanel } from "@/components/editor/ChatPanel";
 import { TEMPLATES, getTemplate } from "@/components/templates/registry";
 import { useActiveResume, useResumeStore } from "@/store/resumeStore";
 
@@ -16,6 +17,7 @@ export default function EditorPage() {
 
   const previewRef = useRef<HTMLDivElement>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [showChat, setShowChat] = useState(true);
   useEffect(() => setHydrated(true), []);
 
   const Template = getTemplate(templateId).Component;
@@ -41,6 +43,14 @@ export default function EditorPage() {
         </div>
         <div className="flex items-center gap-3">
           <LanguageToggle />
+          <button
+            onClick={() => setShowChat((v) => !v)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              showChat ? "bg-tab-blue text-white" : "bg-white text-tab-slate hover:bg-gray-100"
+            }`}
+          >
+            AI 助手
+          </button>
           <Link href="/" className="text-sm font-medium text-tab-slate hover:text-tab-blue">
             ← 重新上传
           </Link>
@@ -48,35 +58,28 @@ export default function EditorPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-[320px_1fr] gap-6 p-6">
-        {/* Left: template chooser + form */}
+      <div
+        className="grid gap-6 p-6"
+        style={{ gridTemplateColumns: showChat ? "300px 1fr 360px" : "300px 1fr" }}
+      >
+        {/* Left: template dropdown + form */}
         <div className="flex flex-col gap-5">
           <section>
-            <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-tab-slate">
+            <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-tab-slate">
               选择模版 Template
-            </h2>
-            <div className="flex flex-col gap-2">
+            </label>
+            <select
+              value={templateId}
+              onChange={(e) => setTemplate(e.target.value)}
+              className="w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium text-tab-ink focus:border-tab-blue focus:outline-none"
+            >
               {TEMPLATES.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTemplate(t.id)}
-                  className={`rounded-lg border-2 p-3 text-left transition ${
-                    t.id === templateId
-                      ? "border-tab-blue bg-tab-panel"
-                      : "border-transparent bg-white hover:border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ background: t.accent }}
-                    />
-                    <span className="text-sm font-semibold text-tab-ink">{t.name}</span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-tab-slate">{t.description}</p>
-                </button>
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
-            </div>
+            </select>
+            <p className="mt-1 text-xs text-tab-slate">{getTemplate(templateId).description}</p>
           </section>
 
           <section>
@@ -87,7 +90,7 @@ export default function EditorPage() {
           </section>
         </div>
 
-        {/* Right: live preview */}
+        {/* Center: live preview */}
         <div className="overflow-auto">
           {hasData ? (
             <div className="mx-auto w-full max-w-[1100px]">
@@ -106,7 +109,26 @@ export default function EditorPage() {
             </div>
           )}
         </div>
+
+        {/* Right: AI assistant */}
+        {showChat && (
+          <div className="sticky top-[68px] h-[calc(100vh-92px)]">
+            <ChatPanel onCollapse={() => setShowChat(false)} />
+          </div>
+        )}
       </div>
+
+      {/* Floating tab to reopen the assistant when collapsed */}
+      {!showChat && (
+        <button
+          onClick={() => setShowChat(true)}
+          className="fixed right-0 top-1/2 z-20 -translate-y-1/2 rounded-l-lg bg-tab-blue px-2 py-3 text-sm font-medium text-white shadow-lg hover:opacity-90"
+          style={{ writingMode: "vertical-rl" }}
+          title="展开 AI 助手"
+        >
+          AI 助手
+        </button>
+      )}
     </main>
   );
 }

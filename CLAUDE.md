@@ -37,14 +37,16 @@ upload → src/lib/extract/text.ts        (PDF via unpdf, DOCX via mammoth, plai
        → template renders from ResumeData (src/components/templates/*)
        → PNG/PDF export, client-side      (src/components/editor/ExportButtons.tsx)
 ```
-Server boundaries (both runtime = nodejs): `src/app/api/extract/route.ts` and `src/app/api/translate/route.ts`. LLM keys are used server-side only and never reach the client.
+Server boundaries (all runtime = nodejs): `src/app/api/{extract,translate,chat}/route.ts`. LLM keys are used server-side only and never reach the client.
+
+**AI assistant** (`/api/chat` + `components/editor/ChatPanel.tsx`): sends the conversation + current resume; the model returns `{reply, resume}` (full updated ResumeData) which replaces the active variant so the preview/form update live. Powered by `provider.complete(system, user, schema)` with `CHAT_SCHEMA`.
 
 **Bilingual + language toggle:** the store keeps `variants: { zh?, en? }` keyed by language plus a `displayLang`. Components read the active variant via the `useActiveResume()` / `useResumeStore` selectors (never a raw `data` field). The 中文/EN toggle (`components/editor/LanguageToggle.tsx`) switches instantly if the variant is cached, else POSTs the current variant to `/api/translate` (which calls `provider.translateResume`), caches the result, and switches. Edits go through `patchActive` so they mutate only the displayed language.
 
 ### LLM provider layer (`src/lib/llm/`)
 - `provider.ts` — the `LLMProvider` interface (`extractResume` + `translateResume`) plus `parseJsonLoose`.
 - `prompt.ts` — shared extract/translate system prompts **and** `RESUME_JSON_SCHEMA`, reused by every provider. The `NO_MIX_RULE` enforces single-language output while keeping software/tool/brand names in English — both extraction and translation use it.
-- Each provider has one private `chatJSON(system, user)`; `extractResume`/`translateResume` are thin wrappers over it (don't duplicate the SDK plumbing).
+- Each provider exposes one public `complete(system, user, schema)`; `extractResume`/`translateResume` are thin wrappers over it (don't duplicate the SDK plumbing). `mock` throws from `complete` (no LLM) — callers handle the "configure a model" message. OpenRouter reuses `OpenAICompatProvider` with `https://openrouter.ai/api/v1`.
 - `anthropic.ts` (tool-use forces the schema), `openai.ts` (OpenAI-compatible `json_schema`; also serves any compatible gateway), `ollama.ts` (native `/api/chat` structured outputs, fully offline), `mock.ts` (rule-based regex fallback).
 - `index.ts` — `getProvider()` resolves the active provider from `LLM_PROVIDER` env and **falls back to `mock` when credentials are missing**. The extract route additionally falls back to `mock` if a configured provider throws at runtime.
 

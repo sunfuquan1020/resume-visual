@@ -164,3 +164,38 @@ export function buildUserPrompt(resumeText: string): string {
 export function buildTranslateUserPrompt(resumeJson: string): string {
   return `Resume JSON to translate:\n${resumeJson.slice(0, 24000)}`;
 }
+
+/** Schema for the resume-editing assistant: a chat reply + the full updated resume. */
+export const CHAT_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: {
+      type: "string",
+      description:
+        "A short, friendly reply to the user describing what you changed or suggesting next steps. Same language as the resume.",
+    },
+    resume: RESUME_JSON_SCHEMA,
+  },
+  required: ["reply", "resume"],
+} as const;
+
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
+export function buildChatSystemPrompt(language: "zh" | "en"): string {
+  return [
+    "You are a resume-editing assistant inside an infographic resume builder.",
+    "You receive the user's CURRENT resume as JSON plus a conversation. Apply the user's requested edits and return the FULL updated resume JSON, together with a short reply.",
+    "Only change what the user asks for; preserve everything else exactly. Never invent experience, employers, or credentials the user didn't provide.",
+    "You may improve wording, tighten the summary, rebalance skill levels (0-100), or add/adjust stats when asked.",
+    NO_MIX_RULE,
+    `Reply in ${language === "zh" ? "Chinese" : "English"}; keep meta.language = '${language}'.`,
+    "Return ONLY the JSON object {reply, resume}. No prose, no markdown fences.",
+  ].join("\n");
+}
+
+export function buildChatUserPrompt(resumeJson: string, history: ChatTurn[]): string {
+  const convo = history
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n");
+  return `Current resume JSON:\n${resumeJson.slice(0, 20000)}\n\nConversation:\n${convo}`;
+}

@@ -39,7 +39,7 @@ export class OpenAICompatProvider implements LLMProvider {
 
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
     const data = parseResumeData(
-      await this.chatJSON(buildSystemPrompt(opts.language), buildUserPrompt(text)),
+      await this.complete(buildSystemPrompt(opts.language), buildUserPrompt(text), RESUME_JSON_SCHEMA),
     );
     data.meta.source = this.id;
     return data;
@@ -47,9 +47,10 @@ export class OpenAICompatProvider implements LLMProvider {
 
   async translateResume(input: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
     const data = parseResumeData(
-      await this.chatJSON(
+      await this.complete(
         buildTranslateSystemPrompt(target),
         buildTranslateUserPrompt(JSON.stringify(input)),
+        RESUME_JSON_SCHEMA,
       ),
     );
     data.meta.language = target;
@@ -57,11 +58,11 @@ export class OpenAICompatProvider implements LLMProvider {
     return data;
   }
 
-  private async chatJSON(system: string, user: string): Promise<unknown> {
+  async complete(system: string, user: string, schema: object): Promise<unknown> {
     const response_format = this.useJsonSchema
       ? ({
           type: "json_schema",
-          json_schema: { name: "resume", schema: RESUME_JSON_SCHEMA },
+          json_schema: { name: "result", schema },
         } as const)
       : ({ type: "json_object" } as const);
 

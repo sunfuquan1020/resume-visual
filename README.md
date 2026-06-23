@@ -11,8 +11,10 @@
 - **LLM 抽取（厂商无关）**：结构化 JSON 输出。支持
   - **Claude API**（`@anthropic-ai/sdk`，tool-use 强制 schema）
   - **OpenAI 兼容 API**（OpenAI 及各类网关，`json_schema`）
-  - **本地 Ollama**（`/api/chat` + structured outputs，完全离线）
+  - **OpenRouter**（一个 Key 调上百种模型，OpenAI 兼容）
+  - **本地 Ollama**（native `/api/chat` + structured outputs，完全离线）
   - **内置规则解析（mock）**：无任何 API Key 也能端到端体验，并作为云/本地失败时的兜底。
+- **AI 助手对话改简历**：右侧对话框,用自然语言让大模型修改简历(如"把简介改得更简洁""技能突出数据方向"),返回的结构化结果实时套用到预览。用的就是你配置的 provider(见 `/api/chat`)。
 - **中英文一键切换**：解析后每个语言版本互相独立、互不混杂(软件/编程语言/品牌名保持英文)。切到尚未生成的语言时,自动用 LLM 翻译一次并缓存(见 `/api/translate`)。
 - **多模版**：
   - **Tableau Dashboard（默认）**——全宽横向双栏:左侧可读的信息侧栏(姓名/联系方式/简介/教育),右侧数据面板(KPI 卡 + 甘特职业时间轴 + 打包气泡图 + 点阵技能矩阵),1:1 对标公开的 Tableau 简历。
@@ -54,8 +56,11 @@ npm run dev                  # http://localhost:3000
 |---|---|
 | `anthropic` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
 | `openai` | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
+| `openrouter` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`（如 `openai/gpt-4o-mini`） |
 | `ollama` | `OLLAMA_HOST`, `OLLAMA_MODEL`（如 `qwen2.5`） |
 | 未配置 | 自动回退到规则解析 `mock` |
+
+> 上传解析、中英翻译、AI 助手对话都走这里选定的 provider。`mock` 模式下 AI 助手不可用（会提示先配置模型）。
 
 > 密钥仅在服务端（`/api/extract`）使用，绝不进入客户端。
 

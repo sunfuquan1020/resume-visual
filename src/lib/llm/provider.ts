@@ -1,6 +1,6 @@
 import type { ResumeData } from "@/lib/schema/resume";
 
-export type ProviderId = "anthropic" | "openai" | "ollama" | "mock";
+export type ProviderId = "anthropic" | "openai" | "openrouter" | "ollama" | "mock";
 
 export interface ExtractOptions {
   language: "zh" | "en" | "auto";
@@ -15,6 +15,12 @@ export interface LLMProvider {
   readonly id: ProviderId;
   extractResume(text: string, opts: ExtractOptions): Promise<ResumeData>;
   translateResume(data: ResumeData, target: "zh" | "en"): Promise<ResumeData>;
+  /**
+   * Low-level JSON completion: send system+user, get back an object matching
+   * `schema`. Powers extraction, translation and the resume-editing assistant.
+   * Throws on providers without an LLM (mock).
+   */
+  complete(system: string, user: string, schema: object): Promise<unknown>;
 }
 
 /** Pull a clean JSON object out of a model's raw text response. */
