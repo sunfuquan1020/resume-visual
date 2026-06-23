@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { parseResumeData } from "@/lib/schema/resume";
-import { enrichResume, estimateYears } from "@/lib/resume/enrich";
+import { enrichResume, estimateYears, reconcileVariant } from "@/lib/resume/enrich";
 import { normalizeOllamaHost } from "@/lib/llm/ollama";
 
 describe("enrichResume", () => {
@@ -29,6 +29,31 @@ describe("enrichResume", () => {
   test("estimateYears spans earliest start to now for current roles", () => {
     const years = estimateYears([{ company: "", position: "", startDate: "2015", endDate: "", summary: "", highlights: [] }]);
     expect(years).toBeGreaterThanOrEqual(new Date().getFullYear() - 2015);
+  });
+});
+
+describe("reconcileVariant", () => {
+  test("backfills array items the translation dropped", () => {
+    const source = parseResumeData({
+      work: [{ company: "A", position: "Eng" }],
+      education: [{ institution: "Fudan University", studyType: "B.S." }],
+      skills: [{ name: "Python" }],
+    });
+    const translated = parseResumeData({
+      work: [{ company: "甲公司", position: "工程师" }],
+      education: [], // model dropped it
+      skills: [{ name: "Python" }],
+    });
+    const out = reconcileVariant(translated, source);
+    expect(out.work[0].company).toBe("甲公司"); // keeps translated
+    expect(out.education).toHaveLength(1); // restored from source
+    expect(out.education[0].institution).toBe("Fudan University");
+  });
+
+  test("keeps translated arrays when complete", () => {
+    const source = parseResumeData({ skills: [{ name: "Go" }] });
+    const translated = parseResumeData({ skills: [{ name: "Go" }] });
+    expect(reconcileVariant(translated, source).skills).toHaveLength(1);
   });
 });
 

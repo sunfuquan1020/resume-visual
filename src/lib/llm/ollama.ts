@@ -2,6 +2,8 @@ import { parseResumeData, type ResumeData } from "@/lib/schema/resume";
 import {
   RESUME_JSON_SCHEMA,
   buildSystemPrompt,
+  buildTranslateSystemPrompt,
+  buildTranslateUserPrompt,
   buildUserPrompt,
 } from "@/lib/llm/prompt";
 import {
@@ -11,7 +13,7 @@ import {
 } from "@/lib/llm/provider";
 
 const DEFAULT_HOST = "http://127.0.0.1:11434";
-const REQUEST_TIMEOUT_MS = 120_000;
+const REQUEST_TIMEOUT_MS = 180_000;
 
 /**
  * Normalize a user-provided OLLAMA_HOST so common mistakes still work:
@@ -48,6 +50,26 @@ export class OllamaProvider implements LLMProvider {
   }
 
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
+    const data = parseResumeData(
+      await this.chatJSON(buildSystemPrompt(opts.language), buildUserPrompt(text)),
+    );
+    data.meta.source = "ollama";
+    return data;
+  }
+
+  async translateResume(input: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
+    const data = parseResumeData(
+      await this.chatJSON(
+        buildTranslateSystemPrompt(target),
+        buildTranslateUserPrompt(JSON.stringify(input)),
+      ),
+    );
+    data.meta.language = target;
+    data.meta.source = "ollama";
+    return data;
+  }
+
+  private async chatJSON(system: string, user: string): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -60,12 +82,12 @@ export class OllamaProvider implements LLMProvider {
         body: JSON.stringify({
           model: this.model,
           stream: false,
-          think: false, // skip chain-of-thought for thinking models → straight JSON
+          think: false,
           format: RESUME_JSON_SCHEMA,
           options: { temperature: 0.2 },
           messages: [
-            { role: "system", content: buildSystemPrompt(opts.language) },
-            { role: "user", content: buildUserPrompt(text) },
+            { role: "system", content: system },
+            { role: "user", content: user },
           ],
         }),
       });
@@ -87,11 +109,7 @@ export class OllamaProvider implements LLMProvider {
 
     const json = (await res.json()) as { message?: { content?: string } };
     const content = json.message?.content ?? "";
-    if (!content.trim()) {
-      throw new Error("Ollama returned an empty response.");
-    }
-    const data = parseResumeData(parseJsonLoose(content));
-    data.meta.source = "ollama";
-    return data;
+    if (!content.trim()) throw new Error("Ollama returned an empty response.");
+    return parseJsonLoose(content);
   }
 }

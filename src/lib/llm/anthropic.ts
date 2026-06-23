@@ -3,6 +3,8 @@ import { parseResumeData, type ResumeData } from "@/lib/schema/resume";
 import {
   RESUME_JSON_SCHEMA,
   buildSystemPrompt,
+  buildTranslateSystemPrompt,
+  buildTranslateUserPrompt,
   buildUserPrompt,
 } from "@/lib/llm/prompt";
 import type { ExtractOptions, LLMProvider } from "@/lib/llm/provider";
@@ -19,10 +21,30 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
+    const data = parseResumeData(
+      await this.chatJSON(buildSystemPrompt(opts.language), buildUserPrompt(text)),
+    );
+    data.meta.source = "anthropic";
+    return data;
+  }
+
+  async translateResume(input: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
+    const data = parseResumeData(
+      await this.chatJSON(
+        buildTranslateSystemPrompt(target),
+        buildTranslateUserPrompt(JSON.stringify(input)),
+      ),
+    );
+    data.meta.language = target;
+    data.meta.source = "anthropic";
+    return data;
+  }
+
+  private async chatJSON(system: string, user: string): Promise<unknown> {
     const res = await this.client.messages.create({
       model: this.model,
       max_tokens: 4096,
-      system: buildSystemPrompt(opts.language),
+      system,
       tools: [
         {
           name: "emit_resume",
@@ -31,15 +53,13 @@ export class AnthropicProvider implements LLMProvider {
         },
       ],
       tool_choice: { type: "tool", name: "emit_resume" },
-      messages: [{ role: "user", content: buildUserPrompt(text) }],
+      messages: [{ role: "user", content: user }],
     });
 
     const toolUse = res.content.find((c) => c.type === "tool_use");
     if (!toolUse || toolUse.type !== "tool_use") {
       throw new Error("Claude did not return structured resume data.");
     }
-    const data = parseResumeData(toolUse.input);
-    data.meta.source = "anthropic";
-    return data;
+    return toolUse.input;
   }
 }

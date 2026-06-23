@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ResumeForm } from "@/components/editor/ResumeForm";
 import { ExportButtons } from "@/components/editor/ExportButtons";
+import { LanguageToggle } from "@/components/editor/LanguageToggle";
 import { TEMPLATES, getTemplate } from "@/components/templates/registry";
-import { useResumeStore } from "@/store/resumeStore";
+import { useActiveResume, useResumeStore } from "@/store/resumeStore";
 
 export default function EditorPage() {
-  const data = useResumeStore((s) => s.data);
+  const data = useActiveResume();
   const templateId = useResumeStore((s) => s.templateId);
   const setTemplate = useResumeStore((s) => s.setTemplate);
   const providerUsed = useResumeStore((s) => s.providerUsed);
@@ -39,6 +40,7 @@ export default function EditorPage() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          <LanguageToggle />
           <Link href="/" className="text-sm font-medium text-tab-slate hover:text-tab-blue">
             ← 重新上传
           </Link>
@@ -88,7 +90,7 @@ export default function EditorPage() {
         {/* Right: live preview */}
         <div className="overflow-auto">
           {hasData ? (
-            <div className="mx-auto w-full max-w-[860px]">
+            <div className="mx-auto w-full max-w-[1100px]">
               <div ref={previewRef} className="overflow-hidden rounded-xl shadow-lg ring-1 ring-black/5">
                 <Template data={data} />
               </div>

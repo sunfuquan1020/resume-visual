@@ -10,6 +10,14 @@ import type { ExtractOptions, LLMProvider } from "@/lib/llm/provider";
 export class MockProvider implements LLMProvider {
   readonly id = "mock" as const;
 
+  /**
+   * The rule-based extractor can't translate. It just relabels the language so
+   * localized section titles switch; narrative content stays as extracted.
+   */
+  async translateResume(data: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
+    return { ...data, meta: { ...data.meta, language: target } };
+  }
+
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
     const lines = text
       .split(/\r?\n/)

@@ -37,18 +37,21 @@ upload → src/lib/extract/text.ts        (PDF via unpdf, DOCX via mammoth, plai
        → template renders from ResumeData (src/components/templates/*)
        → PNG/PDF export, client-side      (src/components/editor/ExportButtons.tsx)
 ```
-The server boundary is the single route `src/app/api/extract/route.ts` (runtime = nodejs). LLM keys are used server-side only and never reach the client.
+Server boundaries (both runtime = nodejs): `src/app/api/extract/route.ts` and `src/app/api/translate/route.ts`. LLM keys are used server-side only and never reach the client.
+
+**Bilingual + language toggle:** the store keeps `variants: { zh?, en? }` keyed by language plus a `displayLang`. Components read the active variant via the `useActiveResume()` / `useResumeStore` selectors (never a raw `data` field). The 中文/EN toggle (`components/editor/LanguageToggle.tsx`) switches instantly if the variant is cached, else POSTs the current variant to `/api/translate` (which calls `provider.translateResume`), caches the result, and switches. Edits go through `patchActive` so they mutate only the displayed language.
 
 ### LLM provider layer (`src/lib/llm/`)
-- `provider.ts` — the `LLMProvider` interface (`extractResume(text, opts) → ResumeData`) plus `parseJsonLoose`.
-- `prompt.ts` — the shared system/user prompt **and** `RESUME_JSON_SCHEMA`, reused by every provider so output is provider-agnostic.
+- `provider.ts` — the `LLMProvider` interface (`extractResume` + `translateResume`) plus `parseJsonLoose`.
+- `prompt.ts` — shared extract/translate system prompts **and** `RESUME_JSON_SCHEMA`, reused by every provider. The `NO_MIX_RULE` enforces single-language output while keeping software/tool/brand names in English — both extraction and translation use it.
+- Each provider has one private `chatJSON(system, user)`; `extractResume`/`translateResume` are thin wrappers over it (don't duplicate the SDK plumbing).
 - `anthropic.ts` (tool-use forces the schema), `openai.ts` (OpenAI-compatible `json_schema`; also serves any compatible gateway), `ollama.ts` (native `/api/chat` structured outputs, fully offline), `mock.ts` (rule-based regex fallback).
 - `index.ts` — `getProvider()` resolves the active provider from `LLM_PROVIDER` env and **falls back to `mock` when credentials are missing**. The extract route additionally falls back to `mock` if a configured provider throws at runtime.
 
-When adding/altering a provider, change `prompt.ts`'s schema in **one** place; don't fork per-provider schemas. `OllamaProvider`'s `normalizeOllamaHost` tolerates `OLLAMA_HOST` written as `0.0.0.0`, missing scheme, or missing port.
+When adding/altering a provider, change `prompt.ts`'s schema in **one** place; don't fork per-provider schemas. `OllamaProvider`'s `normalizeOllamaHost` tolerates `OLLAMA_HOST` written as `0.0.0.0`, missing scheme, or missing port. LLMs sometimes drop optional array items on translate — `reconcileVariant` (`src/lib/resume/enrich.ts`) backfills any dropped work/education/skills/projects from the source so no section is lost.
 
 ### Templates & viz (`src/components/`)
-- `templates/registry.ts` is the **only** place to register a template (`TEMPLATES[]` + `DEFAULT_TEMPLATE_ID`); the editor and store read from it. Default is `dashboard` (`TableauDashboard.tsx`), which mirrors public Tableau resumes.
+- `templates/registry.ts` is the **only** place to register a template (`TEMPLATES[]` + `DEFAULT_TEMPLATE_ID`); the editor and store read from it. Default is `dashboard` (`TableauDashboard.tsx`) — a full-bleed two-column layout (readable dark-slate bio sidebar + wide data panel) mirroring public Tableau resumes. `InfographicTableau.tsx` / `DarkBento.tsx` exist but are unregistered (dark, low-contrast); don't re-add without fixing contrast.
 - `templates/types.ts` holds `TemplateProps`, `TemplateMeta`, and the `t(lang)` i18n helper — add localized section titles to its dict.
 - `viz/` are dependency-free chart primitives (hand-rolled SVG/CSS, **no chart library**): `GanttTimeline`, `PackedBubbles` (greedy spiral packing), `SkillDotMatrix`, `SkillRadar`, `SkillBar`, `Gauge`, `StatCard`. Shared colors + `parseYear` live in `viz/palette.ts`.
 

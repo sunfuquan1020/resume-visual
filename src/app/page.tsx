@@ -2,15 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { parseResumeData } from "@/lib/schema/resume";
+import { parseResumeData, type ResumeData } from "@/lib/schema/resume";
 import { useResumeStore } from "@/store/resumeStore";
 
 type Lang = "auto" | "zh" | "en";
 
 export default function UploadPage() {
   const router = useRouter();
-  const setData = useResumeStore((s) => s.setData);
-  const setProviderUsed = useResumeStore((s) => s.setProviderUsed);
+  const setExtracted = useResumeStore((s) => s.setExtracted);
 
   const [language, setLanguage] = useState<Lang>("auto");
   const [busy, setBusy] = useState(false);
@@ -28,8 +27,7 @@ export default function UploadPage() {
       const res = await fetch("/api/extract", { method: "POST", body: form });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Extraction failed.");
-      setData(parseResumeData(json.data));
-      setProviderUsed(json.provider || "");
+      setExtracted(parseResumeData(json.data), json.provider || "");
       router.push("/editor");
     } catch (e) {
       setError((e as Error).message);
@@ -115,7 +113,7 @@ export default function UploadPage() {
 
       <button
         onClick={() => {
-          loadSample(setData, setProviderUsed);
+          loadSample(setExtracted);
           router.push("/editor");
         }}
         className="mt-4 text-sm font-medium text-tab-blue hover:underline"
@@ -126,14 +124,11 @@ export default function UploadPage() {
   );
 }
 
-function loadSample(
-  setData: (d: ReturnType<typeof parseResumeData>) => void,
-  setProvider: (p: string) => void,
-) {
-  setData(
+function loadSample(setExtracted: (d: ResumeData, provider: string) => void) {
+  setExtracted(
     parseResumeData({
       basics: {
-        name: "李明 / Eric Li",
+        name: "Eric Li",
         label: "Senior Data Engineer",
         email: "eric.li@example.com",
         phone: "+86 138 0000 1234",
@@ -187,6 +182,6 @@ function loadSample(
       ],
       meta: { language: "en", source: "sample" },
     }),
+    "sample",
   );
-  setProvider("sample");
 }

@@ -21,6 +21,22 @@ export function enrichResume(data: ResumeData): ResumeData {
   return out;
 }
 
+/**
+ * Safety net for translation: LLMs occasionally drop optional array items.
+ * If a translated array has fewer entries than the source, append the missing
+ * source items (untranslated) so no section is ever lost.
+ */
+export function reconcileVariant(translated: ResumeData, source: ResumeData): ResumeData {
+  const fill = <T>(t: T[], s: T[]): T[] => (t.length >= s.length ? t : [...t, ...s.slice(t.length)]);
+  return {
+    ...translated,
+    work: fill(translated.work, source.work),
+    education: fill(translated.education, source.education),
+    skills: fill(translated.skills, source.skills),
+    projects: fill(translated.projects, source.projects),
+  };
+}
+
 export function buildDefaultStats(data: ResumeData): Stat[] {
   const zh = data.meta.language === "zh";
   const years = estimateYears(data.work);

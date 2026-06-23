@@ -7,12 +7,14 @@ export interface ExtractOptions {
 }
 
 /**
- * Vendor-agnostic extraction contract. Every implementation takes resume text
- * and returns a validated ResumeData. Implementations live in sibling files.
+ * Vendor-agnostic contract. Implementations take resume text and return a
+ * validated ResumeData; they can also translate an existing ResumeData into the
+ * other language. Implementations live in sibling files.
  */
 export interface LLMProvider {
   readonly id: ProviderId;
   extractResume(text: string, opts: ExtractOptions): Promise<ResumeData>;
+  translateResume(data: ResumeData, target: "zh" | "en"): Promise<ResumeData>;
 }
 
 /** Pull a clean JSON object out of a model's raw text response. */

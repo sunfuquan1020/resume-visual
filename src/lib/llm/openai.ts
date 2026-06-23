@@ -3,6 +3,8 @@ import { parseResumeData, type ResumeData } from "@/lib/schema/resume";
 import {
   RESUME_JSON_SCHEMA,
   buildSystemPrompt,
+  buildTranslateSystemPrompt,
+  buildTranslateUserPrompt,
   buildUserPrompt,
 } from "@/lib/llm/prompt";
 import {
@@ -15,7 +17,6 @@ import {
 /**
  * OpenAI-compatible implementation. Works against OpenAI itself and any
  * compatible endpoint (gateways, local servers) by setting baseURL.
- * Ollama reuses this class via its /v1 compatibility endpoint.
  */
 export class OpenAICompatProvider implements LLMProvider {
   readonly id: ProviderId;
@@ -37,13 +38,30 @@ export class OpenAICompatProvider implements LLMProvider {
   }
 
   async extractResume(text: string, opts: ExtractOptions): Promise<ResumeData> {
+    const data = parseResumeData(
+      await this.chatJSON(buildSystemPrompt(opts.language), buildUserPrompt(text)),
+    );
+    data.meta.source = this.id;
+    return data;
+  }
+
+  async translateResume(input: ResumeData, target: "zh" | "en"): Promise<ResumeData> {
+    const data = parseResumeData(
+      await this.chatJSON(
+        buildTranslateSystemPrompt(target),
+        buildTranslateUserPrompt(JSON.stringify(input)),
+      ),
+    );
+    data.meta.language = target;
+    data.meta.source = this.id;
+    return data;
+  }
+
+  private async chatJSON(system: string, user: string): Promise<unknown> {
     const response_format = this.useJsonSchema
       ? ({
           type: "json_schema",
-          json_schema: {
-            name: "resume",
-            schema: RESUME_JSON_SCHEMA,
-          },
+          json_schema: { name: "resume", schema: RESUME_JSON_SCHEMA },
         } as const)
       : ({ type: "json_object" } as const);
 
@@ -52,14 +70,10 @@ export class OpenAICompatProvider implements LLMProvider {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       response_format: response_format as any,
       messages: [
-        { role: "system", content: buildSystemPrompt(opts.language) },
-        { role: "user", content: buildUserPrompt(text) },
+        { role: "system", content: system },
+        { role: "user", content: user },
       ],
     });
-
-    const content = res.choices[0]?.message?.content ?? "";
-    const data = parseResumeData(parseJsonLoose(content));
-    data.meta.source = this.id;
-    return data;
+    return parseJsonLoose(res.choices[0]?.message?.content ?? "");
   }
 }

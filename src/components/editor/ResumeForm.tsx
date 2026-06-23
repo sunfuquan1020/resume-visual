@@ -1,15 +1,15 @@
 "use client";
 
 import type { ResumeData } from "@/lib/schema/resume";
-import { useResumeStore } from "@/store/resumeStore";
+import { useActiveResume, useResumeStore } from "@/store/resumeStore";
 
 /**
  * Lightweight editor for the most-visible fields. Updates are immutable —
  * each change returns a new ResumeData via the store's patch().
  */
 export function ResumeForm() {
-  const data = useResumeStore((s) => s.data);
-  const patch = useResumeStore((s) => s.patch);
+  const data = useActiveResume();
+  const patch = useResumeStore((s) => s.patchActive);
 
   const setBasics = (key: keyof ResumeData["basics"], value: string) =>
     patch((d) => ({ ...d, basics: { ...d.basics, [key]: value } }));
